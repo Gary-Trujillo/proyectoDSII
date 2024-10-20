@@ -1,0 +1,49 @@
+name: Build
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarcloud:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+
+      - name: Setup Java 17 (Adoptium)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin" # Usar 'temurin' para la distribución de Eclipse Adoptium
+          java-version: "17"
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Install Sonar Scanner
+        run: |
+          # Descargar la versión 6.2.1.4610 de SonarScanner
+          curl -sS https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-6.2.1.4610-linux-x64.zip -o sonar-scanner.zip
+          # Descomprimir el archivo
+          unzip sonar-scanner.zip
+          # Mover el directorio a un espacio accesible dentro del directorio de trabajo de GitHub Actions
+          mv sonar-scanner-6.2.1.4610-linux-x64 sonar-scanner
+          # Agregar sonar-scanner al PATH
+          echo "${{ github.workspace }}/sonar-scanner/bin" >> $GITHUB_PATH
+
+      - name: Run Sonar Scanner
+        run: sonar-scanner -Dsonar.login=${{secrets.SONAR_TOKEN}} -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} -Dsonar.organization=${{ secrets.SONAR_ORG }} -Dsonar.host.url=https://sonarcloud.io
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Necesario para obtener información del PR, si existe
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
